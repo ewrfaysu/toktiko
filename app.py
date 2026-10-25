@@ -5,10 +5,16 @@ import yt_dlp
 
 app = Flask(__name__)
 
-# ডাউনলোড হওয়া ফাইলগুলো সাময়িকভাবে রাখার জন্য temporary directory
+# Temporary Download Folder
 DOWNLOAD_FOLDER = "downloads"
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
+
+# Standard Browser User-Agent header for bypassing bot detection
+COMMON_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept-Language': 'en-US,en;q=0.9',
+}
 
 @app.route("/")
 def index():
@@ -18,12 +24,11 @@ def index():
 def download_media():
     data = request.json or {}
     url = data.get("url")
-    download_type = data.get("type", "no_wm") # no_wm, hd, wm, mp3
+    download_type = data.get("type", "no_wm") # no_wm, hd, mp3
 
     if not url or ("tiktok.com" not in url and "vt.tiktok.com" not in url):
         return jsonify({"status": "error", "message": "Please enter a valid TikTok link."}), 400
 
-    # ইউনিক ফাইল নাম তৈরি করা যাতে মাল্টিপল ইউজার কাজ করলেও ওভাররাইট না হয়
     file_id = str(uuid.uuid4())
     
     if download_type == "mp3":
@@ -31,18 +36,21 @@ def download_media():
         ydl_opts = {
             'format': 'bestaudio/best',
             'outtmpl': file_path,
+            'http_headers': COMMON_HEADERS,
         }
     elif download_type == "hd":
         file_path = os.path.join(DOWNLOAD_FOLDER, f"{file_id}.mp4")
         ydl_opts = {
             'format': 'bestvideo+bestaudio/best',
             'outtmpl': file_path,
+            'http_headers': COMMON_HEADERS,
         }
-    else: # normal / no_wm / wm
+    else: # normal / no_wm
         file_path = os.path.join(DOWNLOAD_FOLDER, f"{file_id}.mp4")
         ydl_opts = {
             'format': 'best',
             'outtmpl': file_path,
+            'http_headers': COMMON_HEADERS,
         }
 
     try:
@@ -65,7 +73,7 @@ def get_file(filename):
         def generate():
             with open(file_path, "rb") as f:
                 yield from f
-            # ইউজার ডাউনলোড সম্পন্ন করার সাথে সাথেই সার্ভার থেকে ফাইল ডিলিট হয়ে যাবে (Storage Full হবে না)
+            # Download complete howar sate sate Render server theke file delete hoye jabe
             if os.path.exists(file_path):
                 try:
                     os.remove(file_path)
